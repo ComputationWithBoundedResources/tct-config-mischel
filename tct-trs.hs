@@ -26,8 +26,9 @@ import           RC
 
 import qualified Debug.Trace                  as T
 
+
 main :: IO ()
-main = flip setModeWith tm $ 
+main = tm `setModeWith` 
   defaultTctConfig 
 --     , defaultSolver = Just ("minismt",[]) }
 

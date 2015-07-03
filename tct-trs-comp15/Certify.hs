@@ -28,7 +28,7 @@ certifyRC p deg =
       >>! fastest
         [ dependencyTuples     >>> try usableRules >>> shifts 1 deg >>> empty
         , dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-        , shifts 2 deg >>> empty ]
+        ,                                              shifts 2 deg >>> empty ]
       where
 
         shifts l u = chain [ tew (ints d) | d <- [(max 0 l) .. (min u deg)] ]
@@ -45,7 +45,9 @@ certifyRC p deg =
         mx d = matrix' d d Triangular ua ur sl gr
         px d = poly' (Mixed d) Restrict ua ur sl gr
 
-certifyDC deg = matchbounds <||> interpretations 1 deg
+certifyDC deg = 
+  try innermostRuleRemoval
+  >>! (matchbounds <||> interpretations 1 deg)
   where
     interpretations l u = chain [ tew (mxAny d) | d <- [(max 0 l) .. (min u deg)] ]
     mxAny d = matrix' d d Triangular NoUargs NoURules (Just selAny) NoGreedy

@@ -5,7 +5,7 @@
 module RC
   ( runtime
   , runtimeSD
-  , CombineRCBy (..)
+  , CombineBy (..)
   ) where
 
 import           Data.Typeable
@@ -13,7 +13,6 @@ import           Data.Typeable
 import           Tct.Core
 import qualified Tct.Core.Common.Parser       as P
 import qualified Tct.Core.Data                as T
-import           Tct.Core.Interactive
 
 import           Tct.Trs.Data
 import qualified Tct.Trs.Data.DependencyGraph as DG
@@ -24,12 +23,12 @@ import           Tct.Trs.Processor
 
 timArg = nat `withName` "timeout" `withHelp` ["timeout"]
 
-data CombineRCBy = Best | Fastest    deriving (Show, Enum, Bounded, Typeable)
-instance T.SParsable i i CombineRCBy where parseS = P.enum
+data CombineBy = Best | Fastest    deriving (Show, Enum, Bounded, Typeable)
+instance T.SParsable i i CombineBy where parseS = P.enum
 
 comArg = T.arg
   `withName` "combine"
-  `T.withDomain` fmap show [(minBound :: CombineRCBy) ..]
+  `T.withDomain` fmap show [(minBound :: CombineBy) ..]
   `withHelp` ["combine with"]
 
 runtimeSD = strategy "runtime" (comArg `T.optional` Fastest, some timArg `T.optional` Nothing) runtime
@@ -48,15 +47,12 @@ px n = poly' (Mixed n) Restrict ?ua ?ur ?sel ?gr
 pxCP 1 = polyCP' Linear Restrict ?ua ?ur
 pxCP n = polyCP' (Mixed n) Restrict ?ua ?ur
 
-
 wgOnUsable dim deg = weightgap' dim deg Algebraic ?ua WgOnTrs
 wg dim deg         = weightgap' dim deg Algebraic ?ua WgOnAny
 
-
-
 --- * rc -------------------------------------------------------------------------------------------------------------
 
-runtime :: CombineRCBy -> Maybe Int -> TrsStrategy
+runtime :: CombineBy -> Maybe Int -> TrsStrategy
 runtime combineBy mto =
   let
     ?timeoutRel = timeoutRelative mto
@@ -84,8 +80,9 @@ withDP =
   where
     toDP' prob
       | Prob.isInnermostProblem prob =
-          timeoutIn 10 (dependencyPairs >>> try usableRules >>> wgOnTrs)
+          timeoutIn 5 (dependencyPairs >>> try usableRules >>> wgOnTrs)
           <|> dependencyTuples >>> try usableRules
+          -- <|> dependencyTuples -- >>> try usableRules
       | otherwise =
           dependencyPairs >>> try usableRules >>> try wgOnTrs
 
@@ -97,6 +94,13 @@ withDP =
       if (Trs.null $ Prob.strictTrs prob)
         then succeeding
         else wgOnUsable 1 1 <||> wgOnUsable 2 1
+
+trivialDP =
+  dependencyTuples
+  >>> try usableRules
+  >>> try trivial
+  >>> try dpsimps
+  >>> tew (wg 1 0 <||> mx 1 0)
 
 withCWDG s = withProblem $ \ prob -> s (Prob.congruenceGraph prob)
 
@@ -110,16 +114,10 @@ rci =
     , named "BOUNDS"  $ ?timeoutRel 10 $ matchbounds >>> empty
     , named "SHIFT"   $
       ?combine
-        [ named "DIRECT"  $ wait 2 $ interpretations >>> empty
-        , named "WITHDP"  $ withDP >>!! dpi          >>> empty ]
+        [ named "DIRECT"  $ interpretations >>> empty
+        , named "WITHDP"  $ withDP >>!! dpi >>> empty ]
     ]
   where
-    trivialDP =
-      dependencyTuples
-      >>> try usableRules
-      >>> try trivial
-      >>> try dpsimps
-      >>> tew (wg 1 0 <||> mx 1 0)
 
 interpretations =
   tew (?timeoutRel 15 $ mx 1 1 <||> wg 1 1) 
@@ -129,9 +127,8 @@ interpretations =
   where
     mxs1 = mx 2 1 <||> mx 3 1
     mxs2 = mx 2 2 <||> mx 3 2 <||> wg 2 2
-    mxs3 = mx 3 3 -- <||> mx 4 3
-    -- mxs4 = mx 4 4
-    mxs4 = failing
+    mxs3 = mx 3 3 <||> mx 4 3
+    mxs4 = mx 4 4
 
 dpi =
   tew (withCWDG trans) >>> basics
@@ -150,18 +147,18 @@ dpi =
     removeLeafs i =
       removeLeaf (mxCP i i)
       <||> removeLeaf (mxCP (i+1) i)
-      -- <||> when (i == 1) (removeLeaf (mxCP 3 1))
+      <||> when (i == 1) (removeLeaf (mxCP 3 1))
       <||> when (i == 2) (removeLeaf (pxCP 2))
 
     removeFirstCongruence = decomposeDG decomposeDGselect (Just $ proc) Nothing >>! try simps
       where proc = try simps >>> tew shiftLeafs >>> basics >>> empty
 
     basics = tew shift
-      -- where shift = mx 3 3 <||> px 3 <||>  mx 4 4
-      where shift = mx 2 2 <||> mx 3 3 <||> px 3
+      where shift = mx 2 2 <||> mx 3 3 <||> px 3 <||>  mx 4 4
 
     simps =
-      try cleanSuffix
+      try empty
+      >>> cleanSuffix
       >>! try trivial
       >>> try usableRules
 
@@ -169,33 +166,26 @@ dpi =
 
 --- ** rc ------------------------------------------------------------------------------------------------------------
 
-
 rc =
   ?combine
     [ named "TRIVIAL" $ ?timeoutRel 10 $ trivialDP
     , named "BOUNDS"  $ ?timeoutRel 10 $ matchbounds
-    , named "SHIFT"   $ tew (?timeoutRel 10 $ mx 1 1 <||> wg 1 1) >>>
+    , named "SHIFT"   $
       ?combine
         [ named "DIRECT"  $ wait 3 $ interpretations
         , named "WITHDP"  $ withDP >>!! dp ]
     ]
   where
-    trivialDP =
-      dependencyTuples
-      >>> try usableRules
-      >>> try trivial
-      >>> try dpsimps
-      >>> tew (wg 1 0 <||> mx 1 0)
 
-
-    dp = withProblem $ loopFrom 1
-      where
-        loopFrom i prob
-          | Trs.null (Prob.strictTrs prob) = dpi
-          | otherwise                      = tew (ints i) >>! withProblem (loopFrom $ succ i)
-        ints i =
-          when (i == 2 || i == 3) (px i)
-          <||> mx i i
-          <||> wg i i
-          <||> when (i < 4) (mx (succ i) i <||> wg (succ i) i)
+  dp = withProblem $ loopFrom 1
+    where
+      loopFrom i prob
+        | Trs.null (Prob.strictTrs prob) = dpi
+        | otherwise                      = tew (ints i) >>! withProblem (loopFrom $ succ i)
+      ints i =
+        let ?sel = Just selAnyRule in
+        mx i i
+        <||> wg i i
+        <||> when (i == 2 || i == 3) (px i)
+        <||> when (i < 4) (mx (succ i) i <||> wg (succ i) i)
 
