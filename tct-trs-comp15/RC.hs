@@ -66,7 +66,7 @@ runtime combineBy mto =
   maybe id timeoutIn mto $ withProblem $ \ prob ->
     if Prob.isInnermostProblem prob
       then rci
-      else iteProgress toInnermost rci undefined
+      else iteProgress toInnermost rci rc
 
 withDP =
   try (withProblem toDP')
@@ -168,12 +168,12 @@ dpi =
 
 rc =
   ?combine
-    [ named "TRIVIAL" $ ?timeoutRel 10 $ trivialDP
-    , named "BOUNDS"  $ ?timeoutRel 10 $ matchbounds
+    [ named "TRIVIAL" $ ?timeoutRel 10 $ trivialDP >>> empty
+    , named "BOUNDS"  $ ?timeoutRel 10 $ matchbounds >>> empty
     , named "SHIFT"   $
       ?combine
-        [ named "DIRECT"  $ wait 3 $ interpretations
-        , named "WITHDP"  $ withDP >>!! dp ]
+        [ named "DIRECT"  $ interpretations >>> empty
+        , named "WITHDP"  $ withDP >>!! dp >>> empty ]
     ]
   where
 

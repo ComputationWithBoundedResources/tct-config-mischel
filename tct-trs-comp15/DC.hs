@@ -9,7 +9,7 @@ import Tct.Trs.Processor
 
 degArg = nat `withName` "degree" `withHelp` ["max degree"]
 
-derivationalSD = strategy "certify" (OneTuple $ degArg `optional` 10) dc
+derivationalSD = strategy "derivational" (OneTuple $ degArg `optional` 4) dc
 derivational   = T.deflFun derivationalSD
 derivational'  = T.declFun derivationalSD
 
@@ -29,3 +29,4 @@ dc deg = timeoutIn 10 matchbounds <||> interpretations 1 deg
   mxs n 
     | n > 0 = mx n n
     | otherwise = failing
+
