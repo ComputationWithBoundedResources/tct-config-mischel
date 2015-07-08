@@ -1,4 +1,5 @@
-{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module Certify (certify, certifySD) where
 
 import           Tct.Core
@@ -10,12 +11,12 @@ import           Tct.Trs.Processor
 
 degArg = nat `withName` "degree" `withHelp` ["max degree"]
 
-certifySD = strategy "certify" (OneTuple $ degArg `optional` 5) (let ?ua = UArgs in certify)
+certifySD = strategy "certify" (OneTuple $ degArg `optional` 5) certify
 
 certify deg = withProblem certify' where
   certify' prob
-    | isRC && isIn = certifyRCI deg
-    | isRC         = certifyRC deg
+    | isRC && isIn = let ?ua = UArgs in certifyRCI deg
+    | isRC         = let ?ua = NoUargs in certifyRC deg
     | otherwise    = certifyDC deg
     where
       isRC = Prob.isRCProblem prob
@@ -35,26 +36,19 @@ mx d = matrix' d d Triangular ?ua URules (Just selAny) NoGreedy
 px d = poly' (Mixed d) Restrict ?ua URules (Just selAny) NoGreedy
 
 
-certifyRC deg =
-  let 
-    ?ua = NoUargs
-  in
-  (matchbounds <||> interpretations)
-  where
-    interpretations = 
-      shifts 1 1
-      >>! fastest
-        [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-        , shifts 2 2 
-          >>! fastest
-            [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-            ,                                              shifts 3 deg >>> empty ]
-        ]
+certifyRC deg = matchbounds <||> interpretations where
+  interpretations =
+    shifts 1 1
+    >>! fastest
+      [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
+      , shifts 2 2
+        >>! fastest
+          [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
+          ,                                              shifts 3 deg >>> empty ]
+      ]
+
 
 certifyRCI deg =
-  let 
-    ?ua = UArgs
-  in
   try innermostRuleRemoval
   >>! (matchbounds <||> interpretations)
   where
