@@ -1,3 +1,4 @@
+{-# LANGUAGE ImplicitParams #-}
 module Certify (certify, certifySD) where
 
 import           Tct.Core
@@ -9,42 +10,69 @@ import           Tct.Trs.Processor
 
 degArg = nat `withName` "degree" `withHelp` ["max degree"]
 
-certifySD = strategy "certify" (OneTuple $ degArg `optional` 10) certify
+certifySD = strategy "certify" (OneTuple $ degArg `optional` 5) (let ?ua = UArgs in certify)
 
-certify deg = withProblem $ \p ->
-  if Prob.isRCProblem p
-    then certifyRC deg
-    else certifyDC deg
+certify deg = withProblem certify' where
+  certify' prob
+    | isRC && isIn = certifyRCI deg
+    | isRC         = certifyRC deg
+    | otherwise    = certifyDC deg
+    where
+      isRC = Prob.isRCProblem prob
+      isIn = Prob.isInnermostProblem prob
+
 
 matchbounds = withProblem $ \prob ->
   when (Trs.isLeftLinear $ Prob.allComponents prob) (timeoutIn 8 $ bounds PerSymbol Match)
 
+shifts l u = chain [ tew (ints d) | d <- [(max 0 l) .. u] ]
+
+ints 2 = mx 2 <||> px 2
+ints 3 = mx 3 <||> px 3
+ints n = mx n
+
+mx d = matrix' d d Triangular ?ua URules (Just selAny) NoGreedy
+px d = poly' (Mixed d) Restrict ?ua URules (Just selAny) NoGreedy
+
+
 certifyRC deg =
+  let 
+    ?ua = NoUargs
+  in
+  (matchbounds <||> interpretations)
+  where
+    interpretations = 
+      shifts 1 1
+      >>! fastest
+        [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
+        , shifts 2 2 
+          >>! fastest
+            [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
+            ,                                              shifts 3 deg >>> empty ]
+        ]
+
+certifyRCI deg =
+  let 
+    ?ua = UArgs
+  in
   try innermostRuleRemoval
   >>! (matchbounds <||> interpretations)
   where
-    interpretations            = withProblem $ interpretations' . Prob.isInnermostProblem
-    interpretations' innermost =
+    interpretations =
       shifts 1 1
       >>! fastest
         [ dependencyTuples     >>> try usableRules >>> shifts 1 deg >>> empty
         , dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
         ,                                              shifts 2 deg >>> empty ]
-      where
 
-        shifts l u = chain [ tew (ints d) | d <- [(max 0 l) .. (min u deg)] ]
+      <|>
 
-        ints 2 = mx 2 <||> px 2
-        ints 3 = mx 3 <||> px 3
-        ints n = mx n
+      shifts 1 1 >>! shifts 2 2
+      >>! fastest
+        [ dependencyTuples     >>> try usableRules >>> shifts 1 deg >>> empty
+        , dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
+        ,                                              shifts 3 deg >>> empty ]
 
-        ua = if innermost then UArgs else NoUargs
-        ur = URules
-        sl = Just selAny
-        gr = NoGreedy
-
-        mx d = matrix' d d Triangular ua ur sl gr
-        px d = poly' (Mixed d) Restrict ua ur sl gr
 
 certifyDC deg =
   try innermostRuleRemoval
