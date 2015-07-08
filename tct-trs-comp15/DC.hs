@@ -1,15 +1,14 @@
-module DC (derivational, derivationalSD) where
+module DC (derivational, derivational', derivationalSD) where
 
-
-import Tct.Core.Data as T (declFun, deflFun)
 import Tct.Core
+import Tct.Core.Data     as T (declFun, deflFun)
 
 import Tct.Trs.Processor
 
 
 degArg = nat `withName` "degree" `withHelp` ["max degree"]
 
-derivationalSD = strategy "derivational" (OneTuple $ degArg `optional` 4) dc
+derivationalSD = strategy "derivational" (OneTuple $ degArg `optional` 10) dc
 derivational   = T.deflFun derivationalSD
 derivational'  = T.declFun derivationalSD
 
@@ -26,7 +25,7 @@ dc deg = timeoutIn 10 matchbounds <||> interpretations 1 deg
   mxs 2 = mx 2 2 <||> mx 3 2 <||> mx 4 2 <||> wg 2 2
   mxs 3 = mx 3 3 <||> mx 4 4 <||> wg 3 3
   mxs 4 = mx 4 4 <||> wg 4 4
-  mxs n 
+  mxs n
     | n > 0 = mx n n
     | otherwise = failing
 

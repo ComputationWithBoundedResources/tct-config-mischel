@@ -13,17 +13,18 @@ certifySD = strategy "certify" (OneTuple $ degArg `optional` 10) certify
 
 certify deg = withProblem $ \p ->
   if Prob.isRCProblem p
-    then certifyRC p deg
+    then certifyRC deg
     else certifyDC deg
 
 matchbounds = withProblem $ \prob ->
-  when (Trs.isLeftLinear $ Prob.allComponents prob) (timeoutIn 7 $ bounds PerSymbol Match)
+  when (Trs.isLeftLinear $ Prob.allComponents prob) (timeoutIn 8 $ bounds PerSymbol Match)
 
-certifyRC p deg =
+certifyRC deg =
   try innermostRuleRemoval
   >>! (matchbounds <||> interpretations)
   where
-    interpretations =
+    interpretations            = withProblem $ interpretations' . Prob.isInnermostProblem
+    interpretations' innermost =
       shifts 1 1
       >>! fastest
         [ dependencyTuples     >>> try usableRules >>> shifts 1 deg >>> empty
@@ -37,7 +38,7 @@ certifyRC p deg =
         ints 3 = mx 3 <||> px 3
         ints n = mx n
 
-        ua = if Prob.isInnermostProblem p then UArgs else NoUargs
+        ua = if innermost then UArgs else NoUargs
         ur = URules
         sl = Just selAny
         gr = NoGreedy
@@ -45,7 +46,7 @@ certifyRC p deg =
         mx d = matrix' d d Triangular ua ur sl gr
         px d = poly' (Mixed d) Restrict ua ur sl gr
 
-certifyDC deg = 
+certifyDC deg =
   try innermostRuleRemoval
   >>! (matchbounds <||> interpretations 1 deg)
   where

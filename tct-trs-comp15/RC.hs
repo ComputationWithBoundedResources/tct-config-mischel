@@ -82,7 +82,6 @@ withDP =
       | Prob.isInnermostProblem prob =
           timeoutIn 5 (dependencyPairs >>> try usableRules >>> wgOnTrs)
           <|> dependencyTuples >>> try usableRules
-          -- <|> dependencyTuples -- >>> try usableRules
       | otherwise =
           dependencyPairs >>> try usableRules >>> try wgOnTrs
 
@@ -110,8 +109,8 @@ withCWDG s = withProblem $ \ prob -> s (Prob.congruenceGraph prob)
 rci =
   try innermostRuleRemoval
   >>! ?combine
-    [ named "TRIVIAL" $ ?timeoutRel 10 $ trivialDP   >>> empty
-    , named "BOUNDS"  $ ?timeoutRel 10 $ matchbounds >>> empty
+    [ named "TRIVIAL" $ timeoutIn 7 $ trivialDP   >>> empty
+    , named "BOUNDS"  $ timeoutIn 7 $ matchbounds >>> empty
     , named "SHIFT"   $
       ?combine
         [ named "DIRECT"  $ interpretations >>> empty
@@ -168,8 +167,8 @@ dpi =
 
 rc =
   ?combine
-    [ named "TRIVIAL" $ ?timeoutRel 10 $ trivialDP >>> empty
-    , named "BOUNDS"  $ ?timeoutRel 10 $ matchbounds >>> empty
+    [ named "TRIVIAL" $ timeoutIn 7 $ trivialDP >>> empty
+    , named "BOUNDS"  $ timeoutIn 7 $ matchbounds >>> empty
     , named "SHIFT"   $
       ?combine
         [ named "DIRECT"  $ interpretations >>> empty
