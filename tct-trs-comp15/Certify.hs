@@ -4,8 +4,9 @@ module Certify (certify, certifySD) where
 
 import           Tct.Core
 
-import qualified Tct.Trs.Data.Problem as Prob
-import qualified Tct.Trs.Data.Trs     as Trs
+import qualified Tct.Trs.Data.Problem   as Prob
+import qualified Tct.Trs.Data.Signature as Sig
+import qualified Tct.Trs.Data.Trs       as Trs
 import           Tct.Trs.Processor
 
 
@@ -24,49 +25,69 @@ certify deg = withProblem certify' where
 
 
 matchbounds = withProblem $ \prob ->
-  when (Trs.isLeftLinear $ Prob.allComponents prob) (timeoutIn 8 $ bounds PerSymbol Match)
+  when (Trs.isLeftLinear $ Prob.allComponents prob) (bounds PerSymbol Match)
 
 shifts l u = chain [ tew (ints d) | d <- [(max 0 l) .. u] ]
 
+ints 0 = px 0
 ints 2 = mx 2 <||> px 2
 ints 3 = mx 3 <||> px 3
 ints n = mx n
 
-mx d = matrix' d d Triangular ?ua URules (Just selAny) NoGreedy
 px d = poly' (Mixed d) Restrict ?ua URules (Just selAny) NoGreedy
+mx d = matrix' d d Triangular ?ua URules (Just selAny) NoGreedy
+
+top = best cmpTimeUB
 
 
-certifyRC deg = matchbounds <||> interpretations where
+certifyRC deg = 
+  top
+    [ timeoutIn 8 trivialRC
+    , timeoutIn 8 matchbounds <||> interpretations ]
+  where
+
   interpretations =
     shifts 1 1
     >>! fastest
       [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-      , shifts 2 2
+      , ( force (shifts 2 2)
         >>! fastest
           [ dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-          ,                                              shifts 3 deg >>> empty ]
+          ,                                              shifts 3 deg >>> empty ])
+
+        <|> 
+
+        shifts 3 deg >>> empty
       ]
+  trivialRC = shifts 0 0 >>> dependencyPairs' WDP >>> try usableRules >>> shifts 0 0 >>> empty
 
 
 certifyRCI deg =
+  withProblem $ \p -> 
   try innermostRuleRemoval
-  >>! (matchbounds <||> interpretations)
+  >>! top
+    [ timeoutIn 8 trivialRCI 
+    , timeoutIn 8 matchbounds <||> interpretations p ]
+  
   where
-    interpretations =
+    interpretations p =
       shifts 1 1
       >>! fastest
-        [ dependencyTuples     >>> try usableRules >>> shifts 1 deg >>> empty
-        , dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-        ,                                              shifts 2 deg >>> empty ]
+        [ dt    >>> try usableRules >>> shifts 1 deg >>> empty
+        , wdp p >>> try usableRules >>> shifts 1 deg >>> empty
+        ,                               shifts 2 deg >>> empty ]
 
       <|>
 
-      shifts 1 1 >>! shifts 2 2
+      shifts 1 1 >>! force (shifts 2 2)
       >>! fastest
-        [ dependencyTuples     >>> try usableRules >>> shifts 1 deg >>> empty
-        , dependencyPairs' WDP >>> try usableRules >>> shifts 1 deg >>> empty
-        ,                                              shifts 3 deg >>> empty ]
+        [ dt    >>> try usableRules >>> shifts 1 deg >>> empty
+        , wdp p >>> try usableRules >>> shifts 1 deg >>> empty
+        ,                               shifts 3 deg >>> empty ]
 
+    dt = dependencyTuples
+    wdp p1 = withProblem $ \p2 -> if Sig.defineds (Prob.signature p1) == Sig.defineds (Trs.signature (Prob.allComponents p2)) then dependencyPairs' WDP else failing
+    trivialRCI = shifts 0 0 >>> dependencyTuples >>> try usableRules >>> shifts 0 0 >>> empty
 
 certifyDC deg =
   try innermostRuleRemoval
