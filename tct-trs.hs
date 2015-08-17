@@ -23,21 +23,25 @@ import           Tct.Trs.Processor
 
 import           Certify                      
 import           RC
+import           DC
 
 import qualified Debug.Trace                  as T
 
 
 main :: IO ()
 main = tm `setModeWith` 
-  defaultTctConfig 
---     , defaultSolver = Just ("minismt",[]) }
+  defaultTctConfig
+    -- { defaultSolver = Just ("minismt",["-v2","-m", "-neg", "-ib", "4", "-ob", "6"]) }
+    -- { defaultSolver = Just ("z3",["-smt2","-in"]) }
 
 
 tm :: M.TrsMode
 tm = M.trsMode
   `withStrategies`
     [ T.SD $ certifySD
-    , T.SD $ runtimeSD ]
+    , T.SD $ runtimeSD
+    , T.SD $ dcfSD
+    , T.SD $ derivationalSD ]
   `withDefaultStrategy` (T.deflFun runtimeSD)
 
 -- trace :: String -> TrsStrategy -> TrsStrategy
@@ -46,4 +50,5 @@ tm = M.trsMode
 
 -- timArg = nat `withName` "timeout" `withHelp` ["timeout"]
 -- degArg = nat `withName` "degree" `withHelp` ["max degree"]
+
 

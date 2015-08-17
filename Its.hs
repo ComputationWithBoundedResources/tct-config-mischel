@@ -23,8 +23,9 @@ defaultSD = strategy "default" (atarg, afarg) def where
 def :: Bool -> Bool -> ItsStrategy
 def useAT useAF =
   let
-    ?nInChain  = 5  :: Int
-    ?nOutChain = 15 :: Int
+    ?maxChain  = 2 :: Int
+    ?nInChain  = 5 :: Int
+    ?nOutChain = 10 :: Int
     ?useAT    = useAT
     ?useAF    = useAF
   in
@@ -69,14 +70,16 @@ withArgumentFilter st = st >>> try af
 withKnowledgePropagation :: ItsStrategy -> ItsStrategy
 withKnowledgePropagation st = st >>> try knowledgePropagation
 
+-- TODO: sort the candidates; first take unknowns one
 innerChaining :: ItsStrategy
 innerChaining = withProblem $ \prob -> chaining . chainingCandidates k prob $ selNextSCC prob
-  where k prob r = maxCost 10 prob r && maxOuts 2 prob r
+  where k prob r = maxCost 2 prob r && maxOuts 3 prob r
 
 outerChaining :: ItsStrategy
 outerChaining = withProblem $ \prob -> chaining . chainingCandidates k prob $ selToNextSCC prob
-  where k prob r = maxCost 20 prob r && maxOuts 2 prob r
+  where k prob r = isUnknown prob r && maxCost 20 prob r && maxOuts 4 prob r
 
-withChaining :: (?nInChain :: Int, ?nOutChain :: Int) => ItsStrategy -> ItsStrategy
-withChaining st = es $ try st >>> (exhaustivelyN ?nInChain innerChaining <|> exhaustivelyN ?nOutChain outerChaining)
+withChaining :: (?maxChain :: Int, ?nInChain :: Int, ?nOutChain :: Int) => ItsStrategy -> ItsStrategy
+-- withChaining st = es $ try st >>> (exhaustivelyN ?nInChain innerChaining <|> exhaustivelyN ?nOutChain outerChaining)
+withChaining st = exhaustivelyN ?maxChain  $ try st >>> (exhaustivelyN ?nInChain innerChaining <|> exhaustivelyN ?nOutChain outerChaining) >>> try empty
 
