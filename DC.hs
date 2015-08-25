@@ -1,4 +1,9 @@
-module DC (derivational, derivational', derivationalSD, dcfSD) where
+module DC 
+  ( derivational
+  , derivational'
+  , derivationalSD
+  ) where
+
 import qualified Data.Set                  as S (fold)
 
 import           Tct.Core
@@ -15,11 +20,9 @@ import           Tct.Trs.Processor
 -- matchbounds sometimes/rarely applies after shifting rules to the weak component or after decomposition
 -- SRS benefit from higher constants
 
-derivationalSD = strategy "derivational" () dc
+derivationalSD = strategy "derivational" () dcfast
 derivational   = T.deflFun derivationalSD
 derivational'  = T.declFun derivationalSD
-
-dcfSD = strategy "dcf" () dcfast
 
 
 iteNonSizeIncreasing st1 st2 = withProblem $ \prob ->
@@ -80,7 +83,7 @@ dc =
   composition2    = iteProgress compose (interpretation2 <||> composition2) basics2
 
 
-dcfast = -- withMini $ 
+dcfast =
   combine
     [ timeoutIn 25 matchbounds
     , whenSRS $ withMini $ tew (mx 1 1) >>> tew (mx 2 2)

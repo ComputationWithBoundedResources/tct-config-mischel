@@ -32,7 +32,7 @@ main :: IO ()
 main = tm `setModeWith` 
   defaultTctConfig
     -- { defaultSolver = Just ("minismt",["-v2","-m", "-neg", "-ib", "4", "-ob", "6"]) }
-    -- { defaultSolver = Just ("z3",["-smt2","-in"]) }
+    -- { defaultSolver = Just ("z3",[]) }
 
 
 tm :: M.TrsMode
@@ -40,9 +40,19 @@ tm = M.trsMode
   `withStrategies`
     [ T.SD $ certifySD
     , T.SD $ runtimeSD
-    , T.SD $ dcfSD
     , T.SD $ derivationalSD ]
-  `withDefaultStrategy` (T.deflFun runtimeSD)
+  `withDefaultStrategy` (T.deflFun competitionSD)
+
+
+competitionSD = strategy "competition" (OneTuple $ some timArg `T.optional` Nothing) competition
+  where timArg = nat `withName` "timeout" `withHelp` ["timeout"]
+
+competition mto =
+  timeoutRelative mto 100 $ withProblem $ \p ->
+    if Prob.isRCProblem p
+      then runtime' Best mto
+      else derivational
+
 
 -- trace :: String -> TrsStrategy -> TrsStrategy
 -- trace s st = T.trace s $ withProblem $ \ prob ->

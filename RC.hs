@@ -4,6 +4,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module RC
   ( runtime
+  , runtime'
   , runtimeSD
   , CombineBy (..)
   ) where
@@ -31,7 +32,10 @@ comArg = T.arg
   `T.withDomain` fmap show [(minBound :: CombineBy) ..]
   `withHelp` ["combine with"]
 
-runtimeSD = strategy "runtime" (comArg `T.optional` Fastest, some timArg `T.optional` Nothing) runtime
+runtimeSD = strategy "runtime" (comArg `T.optional` Fastest, some timArg `T.optional` Nothing) runtimeS
+
+runtime  = T.deflFun runtimeSD
+runtime' = T.declFun runtimeSD
 
 
 --- * direct ---------------------------------------------------------------------------------------------------------
@@ -52,8 +56,8 @@ wg dim deg         = weightgap' dim deg Algebraic ?ua WgOnAny
 
 --- * rc -------------------------------------------------------------------------------------------------------------
 
-runtime :: CombineBy -> Maybe Int -> TrsStrategy
-runtime combineBy mto =
+runtimeS :: CombineBy -> Maybe Int -> TrsStrategy
+runtimeS combineBy mto =
   let
     ?timeoutRel = timeoutRelative mto
     ?combine    = case combineBy of { Best -> best cmpTimeUB; Fastest -> fastest }
