@@ -70,7 +70,6 @@ withArgumentFilter st = st >>> try af
 withKnowledgePropagation :: ItsStrategy -> ItsStrategy
 withKnowledgePropagation st = st >>> try knowledgePropagation
 
--- TODO: sort the candidates; first take unknowns one
 innerChaining :: ItsStrategy
 innerChaining = withProblem $ \prob -> chaining . chainingCandidates k prob $ selNextSCC prob
   where k prob r = maxCost 2 prob r && maxOuts 3 prob r
