@@ -1,3 +1,4 @@
+*linux*
 dist
 cabal-dev
 *.o
