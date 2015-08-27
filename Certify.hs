@@ -27,12 +27,12 @@ certify deg = withProblem certify' where
 matchbounds = withProblem $ \prob ->
   when (Trs.isLeftLinear $ Prob.allComponents prob) (bounds PerSymbol Match)
 
-shifts l u = chain [ tew (ints d) | d <- [(max 0 l) .. u] ]
+shifts l u = chain [ tew (intes d) | d <- [(max 0 l) .. u] ]
 
-ints 0 = px 0
-ints 2 = mx 2 <||> px 2
-ints 3 = mx 3 <||> px 3
-ints n = mx n
+intes 0 = px 0
+intes 2 = mx 2 <||> px 2
+intes 3 = mx 3 <||> px 3
+intes n = mx n
 
 px d = poly' (Mixed d) NoRestrict ?ua URules (Just selAny) NoGreedy
 mx d = matrix' d d Triangular ?ua URules (Just selAny) NoGreedy
