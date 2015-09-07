@@ -1,7 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE ImplicitParams            #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE CPP #-}
 module Main where
 
 import           Data.Typeable
@@ -21,27 +18,30 @@ import qualified Tct.Trs.Data.Trs             as Trs
 import           Tct.Trs.Interactive
 import           Tct.Trs.Processor
 
-import           Certify                      
-import           RC
+import           Certify
 import           DC
+import           RC
 
 import qualified Debug.Trace                  as T
 
 
 main :: IO ()
-main = tm `setModeWith` 
+main = tm `setModeWith`
   defaultTctConfig
+#ifdef NOTRECOMPILE
+    { recompile = False }
+#endif
     -- { defaultSolver = Just ("minismt",["-v2","-m", "-neg", "-ib", "4", "-ob", "6"]) }
-    -- { defaultSolver = Just ("z3",[]) }
+    { defaultSolver = Just ("yices-smt2",[]) }
 
 
 tm :: M.TrsMode
 tm = M.trsMode
   `withStrategies`
-    [ T.SD $ certifySD
-    , T.SD $ runtimeSD
-    , T.SD $ derivationalSD ]
-  `withDefaultStrategy` (T.deflFun competitionSD)
+    [ T.SD certifySD
+    , T.SD runtimeSD
+    , T.SD derivationalSD ]
+  `withDefaultStrategy` T.deflFun competitionSD
 
 
 competitionSD = strategy "competition" (OneTuple $ some timArg `T.optional` Nothing) competition

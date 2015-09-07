@@ -1,33 +1,38 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeOperators         #-}
 #!/usr/bin/runhaskell
 
 import           Tct.Core
 
-import qualified Tct.Core.Common.Parser  as TP
-import qualified Tct.Core.Data           as T
-import qualified Tct.Core.Parse          as TP
+import qualified Tct.Core.Common.Parser as TP
+import qualified Tct.Core.Data          as T
+import qualified Tct.Core.Parse         as TP
 
-import qualified Tct.Trs                 as R
-import qualified Tct.Trs.Processor       as R
+import qualified Tct.Trs                as R
+import qualified Tct.Trs.Processor      as R
 
-import qualified Tct.Its                 as I
-import qualified Tct.Its.Processor       as I
+import qualified Tct.Its                as I
+import qualified Tct.Its.Processor      as I
 
-import           Its                     (defaultSD)
-import           RC                      (runtimeSD)
+import           Its                    (defaultSD)
+import           RC                     (runtimeSD)
 
 
 import           Tct.Jbc.Data
 
 import           Tct.Jbc
-import           Tct.Jbc.Data.Mode       (JbcMode)
+import           Tct.Jbc.Data.Mode      (JbcMode)
 import           Tct.Jbc.Processor
 
 main :: IO ()
-main = jm `setModeWith` defaultTctConfig
+main = jm `setModeWith`
+  defaultTctConfig
+#ifdef NOTRECOMPILE
+    { recompile = False }
+#endif
 
 jm :: JbcMode
 jm = jbcMode
@@ -35,7 +40,7 @@ jm = jbcMode
     [ T.SD jatDeclaration
     , T.SD trsDeclaration
     , T.SD itsDeclaration ]
-  `withDefaultStrategy` (T.deflFun jatDeclaration)
+  `withDefaultStrategy` T.deflFun jatDeclaration
 
 
 jatDeclaration :: T.Declaration (
@@ -46,7 +51,7 @@ jatDeclaration = T.strategy "jat" (trsArg `T.optional` trs, itsArg `T.optional` 
 
 -- MS: dependencies between modules are annoying to handle here we would like the declaration list of the
 -- configuration files but the configuration files are no Main modules; we would have to define the list of
--- declarations in a sparate module 
+-- declarations in a separate module
 instance T.SParsable Jbc Jbc (Strategy R.TrsProblem R.TrsProblem) where
   parseS = TP.withState ds TP.strategy
     where ds = T.SD runtimeSD : R.defaultDeclarations

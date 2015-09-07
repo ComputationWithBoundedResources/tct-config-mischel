@@ -1,10 +1,14 @@
-{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE CPP            #-}
 #!/usr/bin/runhaskell
 
-import           Tct.Core
+import Tct.Core
 
-import           Its
+import Its
 
 main :: IO ()
-main = im `setModeWith` defaultTctConfig
+main = im `setModeWith`
+  defaultTctConfig
+#ifdef NOTRECOMPILE
+    { recompile = False }
+#endif
 
