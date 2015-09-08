@@ -4,6 +4,7 @@ flags:
   QuickCheck:
     base4point8: false
 packages:
+- '.'
 - ../software/tct-bundle/slogic/
 
 - ../software/tct-bundle/tct-core/
